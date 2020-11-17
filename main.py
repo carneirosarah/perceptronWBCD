@@ -4,7 +4,10 @@ Perceptron - Diagnóstico de câncer de mama
 Sarah R. L. Carneiro
 '''
 
+import random
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as seaborn
 from sklearn import preprocessing
 from sklearn.metrics import confusion_matrix
 
@@ -23,6 +26,8 @@ class Perceptron:
 
     def trainPcn(self, X, T, tipeOfTrain):
 
+        error = []
+
         # treinamento de batch
         if (tipeOfTrain == 0):
 
@@ -32,6 +37,10 @@ class Perceptron:
                 # W = W + lambda * X * (T - O)
                 self.W += self.learningRate * np.dot(X.T, (T - O))
 
+                error.append(Perceptron.calcError(O, T))
+
+            return error
+
         # treinamento sequencial
         else:
 
@@ -39,6 +48,11 @@ class Perceptron:
                 for k in range(len(X)):
                     O = self.predict(X[k, :])
                     self.W += self.learningRate * np.dot(X[k, :][np.newaxis].T, (T[k, :] - O)[np.newaxis])
+
+                O = self.predict(X)
+                error.append(Perceptron.calcError(O, T))
+
+            return error
 
     # f(XW - b)
     def predict(self, X):
@@ -86,14 +100,48 @@ class Perceptron:
         return X, T
 
     @staticmethod
-    def calcAccuracy(O, T):
+    def calcError(O, T):
 
         count = 0
         for i in range(len(T)):
             if (O[i] != T[i]):
                 count += 1
 
-        return (1 - count / len(T)) * 100
+        return count
+
+    @staticmethod
+    def calcAccuracy(O, T):
+
+        error = Perceptron.calcError(O, T)
+        return (1 - error/ len(T)) * 100
+
+    @staticmethod
+    def plotError(error, numberOfTimes):
+
+        x = np.arange(0, numberOfTimes, 1)
+        plt.plot(x, error, color='red')
+        plt.title('Erro por época')
+        plt.savefig('erro', bbox_inches='tight', dpi=300)
+        plt.show()
+
+    @staticmethod
+    def plotConfusionMatrix(data, labels, output_filename):
+        seaborn.set(color_codes=True)
+        plt.figure(1, figsize=(9, 6))
+
+        plt.title("Matriz de confusão")
+
+        seaborn.set(font_scale=1.4)
+        ax = seaborn.heatmap(data, annot=True, cmap="YlGnBu", cbar_kws={'label': 'Scale'}, fmt="d")
+
+        ax.set_xticklabels(labels)
+        ax.set_yticklabels(labels)
+
+        # ax.set(ylabel="True Label", xlabel="Predicted Label")
+
+        plt.savefig(output_filename, bbox_inches='tight', dpi=300)
+        plt.show()
+        plt.close()
 
 def main():
     print('\n\n===== Perceptron - Diagnóstico de câncer de mama =====\n\n')
@@ -115,16 +163,20 @@ def main():
     testeLabels = T[idx+1:699, :]
 
     # pesos sinapticos
+    np.random.seed(0)
     weights = np.random.normal(0, 0.01, (10, 1))
 
     p = Perceptron(learningRate=learningRate, numberOfTimes=numberOfTimes, weights=weights)
-    p.trainPcn(trainSet, trainLabels, tipeOfTrain)
+    error = p.trainPcn(trainSet, trainLabels, tipeOfTrain)
     O = p.testPcn(testSet)
 
     print('acurácia', Perceptron.calcAccuracy(O, testeLabels))
 
     conf_mat = confusion_matrix(testeLabels, O)
-    print(conf_mat)
+    print('Matriz de Confusão', conf_mat)
+
+    Perceptron.plotError(error, numberOfTimes)
+    Perceptron.plotConfusionMatrix(conf_mat, ['Tumor Benigno', 'Tumor Maligno'], 'matrizConfusao')
 
 if __name__ == '__main__':
     main()
